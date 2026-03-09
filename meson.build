@@ -170,6 +170,7 @@ src_files = files(
     'src/modules/load.cpp',
     'src/modules/temperature.cpp',
     'src/modules/user.cpp',
+    'src/modules/undertale.cpp',
     'src/ASlider.cpp',
     'src/main.cpp',
     'src/bar.cpp',

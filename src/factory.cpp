@@ -119,6 +119,7 @@
 #include "modules/custom.hpp"
 #include "modules/image.hpp"
 #include "modules/temperature.hpp"
+#include "modules/undertale.hpp"
 #include "modules/user.hpp"
 
 waybar::Factory::Factory(const Bar& bar, const Json::Value& config) : bar_(bar), config_(config) {}
@@ -274,6 +275,9 @@ waybar::AModule* waybar::Factory::makeModule(const std::string& name,
     }
     if (ref == "image") {
       return new waybar::modules::Image(id, config_[name]);
+    }
+    if (ref == "undertale") {
+      return new waybar::modules::Undertale(id, config_[name]);
     }
 #ifdef HAVE_DBUSMENU
     if (ref == "tray") {
