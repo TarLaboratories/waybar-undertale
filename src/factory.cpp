@@ -277,7 +277,7 @@ waybar::AModule* waybar::Factory::makeModule(const std::string& name,
       return new waybar::modules::Image(id, config_[name]);
     }
     if (ref == "undertale") {
-      return new waybar::modules::Undertale(id, config_[name]);
+      return new waybar::modules::undertale::Undertale(id, config_[name]);
     }
 #ifdef HAVE_DBUSMENU
     if (ref == "tray") {
