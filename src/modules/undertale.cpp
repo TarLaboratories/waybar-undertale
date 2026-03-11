@@ -89,13 +89,12 @@ void Player::tick() {
     case DEATH:
       if (iframes == 0) {
         iframes = -1;
-        state->arena->dialogue.emplace(
-            "It cannot end like this!\nTAR, stay determiSIGSEGV (Core "
-            "dumped)");
+        state->arena->dialogue.emplace("It cannot end like this!\nTAR, stay determined!");
       }
       break;
   }
   if (hp <= 0 && state->mode != DEATH) {
+    hp = 0;
     pos = get_screen_coords();
     iframes = 80;
     state->mode = DEATH;
@@ -166,6 +165,7 @@ void Arena::tick() {
     } else {
       if (cur_char < dialogue.front().size()) {
         do {
+          if (state->mode == DEATH && state->tick % 3 != 0) break;
           cur_text.back() += dialogue.front()[cur_char++];
           if (cur_text.back().size() == 1 && cur_text.back()[0] == ' ') {
             cur_text.back() = "";
@@ -515,6 +515,7 @@ void waybar::modules::undertale::Undertale::check_asset_path() {
 }
 
 auto waybar::modules::undertale::Undertale::update() -> void {
+  state_.tick++;
   check_asset_path();
   state_.input->read();
   if (state_.mode != DEATH) {
@@ -526,7 +527,8 @@ auto waybar::modules::undertale::Undertale::update() -> void {
   }
   area_.set_size_request(state_.get_width(), state_.get_height());
   if (rand() % 4 == 0 && state_.mode == ARENA) {
-    state_.arena->attacks.push_back(new Bullet(&state_, 5, {50, 50}, {(rand() % 16) - 8, -4}));
+    state_.arena->attacks.push_back(
+        new Bullet(&state_, 5, {50, 50}, {(rand() % 6) - 3, -(rand() % 3)}));
   }
   state_.player->tick();
   int ind = 0;

@@ -338,6 +338,7 @@ struct GameState : public ISizeable {
   Arena *arena;
   Player *player;
   std::vector<Button *> buttons = std::vector<Button *>(4, nullptr);
+  long tick = 0;
 
   void set_width(int width) { this->width = width; }
 
