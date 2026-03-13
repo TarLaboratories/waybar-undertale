@@ -1,48 +1,62 @@
-# Waybar [![Licence](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE) [![Paypal Donate](https://img.shields.io/badge/Donate-Paypal-2244dd.svg)](https://paypal.me/ARouillard)<br>![Waybar](https://raw.githubusercontent.com/alexays/waybar/master/preview-2.png)
+# waybar-undertale
 
-> Highly customizable Wayland bar for Sway and Wlroots based compositors.<br>
-> Available in [all major distributions](https://github.com/Alexays/Waybar/wiki/Installation)<br>
-> *Waybar [examples](https://github.com/Alexays/Waybar/wiki/Examples)*
+### what is this?
 
-#### Current features
-- Sway (Workspaces, Binding mode, Focused window name)
-- River (Mapping mode, Tags, Focused window name)
-- Hyprland (Window Icons, Workspaces, Focused window name)
-- Niri (Workspaces, Focused window name, Language)
-- DWL (Tags, Focused window name) [requires dwl ipc patch](https://codeberg.org/dwl/dwl-patches/src/branch/main/patches/ipc)
-- Tray [#21](https://github.com/Alexays/Waybar/issues/21)
-- Local time
-- Battery
-- UPower
-- Power profiles daemon
-- Network
-- Bluetooth
-- Pulseaudio
-- Privacy Info
-- Wireplumber
-- Disk
-- Memory
-- Cpu load average
-- Temperature
-- MPD
-- Custom scripts
-- Custom image
-- Multiple output configuration
-- And many more customizations
+uhh idk i was bored, i have no idea why i'm putting this on github<br>
+basically this puts a simple undertale fight into your waybar for no reason
 
-#### Configuration and Styling
+#### Configuration
 
-[See the wiki for more details](https://github.com/Alexays/Waybar/wiki).
+This fork adds only one module: `undertale`.
+
+It has the following configuration options (configured like any other waybar module in `~/.config/waybar/config.jsonc`:
+
+```jsonc
+"undertale": {
+  "path": "/path/to/assets/", // path to a folder containing all the PNGs (they are not provided in this repo, find them elsewhere)
+  "interval": 0.05, // amount of seconds a tick takes (I use this with 0.05)
+  "signal": 4, // when you send the SIGRTMIN+{signal} to the waybar process, it will update this module (used mostly for unpause)
+  "width": 200 // I didn't test it with anything other than 200, this option may not even work lol
+}
+```
+
+You should also add this to your `~/.config/waybar/config.jsonc` because reasons:
+```css
+#undertale-overlay {
+  background: transparent;
+}
+```
+
+Oh, and this only runs on hyprland with some very specific configs because I'm lazy.
+Anyways, here's the relevant part of my `~/.config/hypr/hyprland.conf`:
+(It doesn't have to be these specific binds)
+
+```
+submap = undertale
+bind = $mainMod, C, exec, hyprctl setcursor Adwaita 16 # insert your cursor theme here
+bind = $mainMod, C, submap, reset
+submap = reset
+
+
+bind = $mainMod, C, exec, hyprctl setcursor Blank 16 # this theme just makes the cursor invisible
+bind = $mainMod, C, exec, hyprctl dispatch submap undertale && pkill -SIGRTMIN+4 waybar
+
+windowrule {
+  name = undertale-waybar-module
+  match:title = waybar-undertale
+  no_blur = on
+  no_focus = on
+  move = 0 0
+  float = on
+  border_size = 0
+  pin = on
+}
+```
 
 ### Installation
 
-Waybar is available from a number of Linux distributions:
-
-[![Packaging status](https://repology.org/badge/vertical-allrepos/waybar.svg?columns=3&header=Waybar%20Downstream%20Packaging)](https://repology.org/project/waybar/versions)
-
-An Ubuntu PPA with more recent versions is available
-[here](https://launchpad.net/~nschloe/+archive/ubuntu/waybar).
-
+I have no idea why you would even want this.
+Just build from source.
 
 #### Building from source
 
@@ -145,16 +159,3 @@ pacman -S --asdeps \
   wayland-protocols \
   glib2-devel
 ```
-
-
-Contributions welcome!<br>
-Have fun :)<br>
-The style guidelines are [Google's](https://google.github.io/styleguide/cppguide.html)
-
-> [!CAUTION]
-> Distributions of Waybar are only released on the [official GitHub page](https://github.com/Alexays/Waybar).<br/>
-> Waybar does **not** have an official website. Do not trust any sites that claim to be official.
-
-## License
-
-Waybar is licensed under the MIT license. [See LICENSE for more information](https://github.com/Alexays/Waybar/blob/master/LICENSE).
