@@ -68,7 +68,7 @@ void Player::handle_input() {
   }
   switch (state->mode) {
     case MODE_SELECT:
-      if (state->input->x.pressed) system("hyprctl dispatch submap reset");
+      if (state->input->x.pressed) Input::unfocus();
       if (state->input->left.pressed) {
         selected = (selected + 3) % 4;
       }

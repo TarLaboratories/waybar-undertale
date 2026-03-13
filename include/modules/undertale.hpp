@@ -69,6 +69,8 @@ class Input {
     return util::command::exec("hyprctl submap", "").out == "undertale\n";
   }
 
+  static void unfocus() { system("hyprctl dispatch submap reset > /dev/null"); }
+
  private:
   void bind() {
     system(("hyprctl keyword submap " + submap).c_str());
