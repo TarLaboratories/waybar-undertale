@@ -13,7 +13,7 @@ It has the following configuration options (configured like any other waybar mod
 
 ```jsonc
 "undertale": {
-  "path": "/path/to/assets/", // path to a folder containing all the PNGs (they are not provided in this repo, find them elsewhere)
+  "path": "/path/to/assets/", // path to a folder containing all the PNGs (they are not provided in this repo cause idk about licensing)
   "interval": 0.05, // amount of seconds a tick takes (I use this with 0.05)
   "signal": 4, // when you send the SIGRTMIN+{signal} to the waybar process, it will update this module (used mostly for unpause)
   "width": 200 // I didn't test it with anything other than 200, this option may not even work lol
@@ -26,6 +26,19 @@ You should also add this to your `~/.config/waybar/config.jsonc` because reasons
   background: transparent;
 }
 ```
+
+By the way here's the list of PNGs that are required to be in the asset folder:
+ - act.png
+ - act_selected.png
+ - fight.png
+ - fight_selected.png
+ - heartbreak.png
+ - hp.png
+ - item.png
+ - item_selected.png
+ - mercy.png
+ - mercy_selected.png
+ - soul.png
 
 Oh, and this only runs on hyprland with some very specific configs because I'm lazy.
 Anyways, here's the relevant part of my `~/.config/hypr/hyprland.conf`:
