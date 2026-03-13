@@ -24,11 +24,20 @@ enum Action : std::uint8_t { FIGHT, ACT, ITEM, MERCY };
 
 struct KeyState {
   bool pressed = false;
+  bool released = false;
   bool held = false;
 
   void handle(bool press) {
     held = press;
-    if (press) pressed = true;
+    if (press)
+      pressed = true;
+    else
+      released = true;
+  }
+
+  void on_tick_start() {
+    pressed = false;
+    released = false;
   }
 };
 
@@ -90,12 +99,12 @@ class Input {
  public:
   void read() {
     int nread = ::read(fd, in, 2);
-    left.pressed = false;
-    right.pressed = false;
-    up.pressed = false;
-    down.pressed = false;
-    z.pressed = false;
-    x.pressed = false;
+    left.on_tick_start();
+    right.on_tick_start();
+    up.on_tick_start();
+    down.on_tick_start();
+    z.on_tick_start();
+    x.on_tick_start();
     if (nread > 0) {
       bool press = in[1] == 'p';
       switch (in[0]) {
@@ -131,10 +140,10 @@ class Textures {
   FT_Face ft_font;
   cairo_font_face_t *font;
 
-  Textures() {
+  Textures(std::string asset_path_) : asset_path(std::move(asset_path_)) {
     FT_Library ft;
     FT_Init_FreeType(&ft);
-    FT_New_Face(ft, "/home/taranov/.fonts/Determination.ttf", 0, &ft_font);
+    FT_New_Face(ft, (asset_path + "Determination.ttf").c_str(), 0, &ft_font);
     font = cairo_ft_font_face_create_for_ft_face(ft_font, 0);
   }
 
@@ -162,6 +171,14 @@ class IPos {
   IPos operator+(const IPos &pos) const { return {x + pos.x, y + pos.y}; }
 
   IPos operator-(const IPos &pos) const { return {x - pos.x, y - pos.y}; }
+
+  IPos operator*(int factor) const { return {x * factor, y * factor}; }
+
+  IPos operator/(int factor) const { return {x / factor, y / factor}; }
+
+  bool operator==(const IPos &pos) const { return x == pos.x && y == pos.y; }
+
+  bool operator!=(const IPos &pos) const { return x != pos.x || y != pos.y; }
 };
 
 class ISizeable {
@@ -275,6 +292,8 @@ class Player : public ISizeableTextured, public IUIElement {
 
  public:
   int selected = ACT;
+  bool free = false;
+  bool autoclick = false;
 
   static const int STEP = 4;
 
@@ -285,6 +304,8 @@ class Player : public ISizeableTextured, public IUIElement {
   void render(cairo_t *cr) const override;
 
   void damage(int damage);
+
+  void handle_input();
 
   void tick() override;
 
@@ -334,11 +355,13 @@ struct GameState : public ISizeable {
 
   Input *input;
   MovementMode mode = MODE_SELECT;
-  Textures *textures = new Textures();
+  Textures *textures;
   Arena *arena;
   Player *player;
+  Gtk::DrawingArea overlay;
   std::vector<Button *> buttons = std::vector<Button *>(4, nullptr);
   long tick = 0;
+  gint x, y;
 
   void set_width(int width) { this->width = width; }
 
@@ -393,23 +416,19 @@ class Undertale : public AModule {
  private:
   void delayWorker();
   void handleEvent();
-  void check_asset_path();
   static gboolean draw_callback(GtkWidget *widget, cairo_t *cr, gpointer data);
+  static gboolean draw_overlay_callback(GtkWidget *widget, cairo_t *cr, gpointer data);
 
+  Gtk::Window window;
   Gtk::Box box_;
   Gtk::DrawingArea area_;
-  std::string asset_path_;
   std::chrono::milliseconds interval_;
-  util::command::res output_;
 
   util::SleeperThread thread_;
 
   GameState state_;
 
-  bool left_held = false;
-  bool right_held = false;
-  bool up_held = false;
-  bool down_held = false;
+  bool pause = false;
 };
 
 }  // namespace waybar::modules::undertale

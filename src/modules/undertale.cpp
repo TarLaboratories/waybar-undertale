@@ -12,6 +12,7 @@
 #include "glib.h"
 #include "glibconfig.h"
 #include "glibmm/fileutils.h"
+#include "gtk/gtk.h"
 #include "gtkmm/widget.h"
 
 namespace waybar::modules::undertale {
@@ -25,6 +26,7 @@ Player::Player(GameState* state) : ISizeableTextured(state->textures, "soul.png"
 }
 
 IPos Player::get_screen_coords() const {
+  if (free) return pos + IPos{state->x, state->y};
   if (state->mode == ARENA) return pos + state->arena->pos;
   return pos;
 }
@@ -46,9 +48,23 @@ void Player::damage(int damage) {
   hp -= damage;
 }
 
-void Player::tick() {
-  if (iframes > 0) {
-    iframes--;
+void Player::handle_input() {
+  if (free) {
+    IPos prev_pos = pos;
+    if (state->input->left.held) pos.x -= STEP * 4;
+    if (state->input->right.held) pos.x += STEP * 4;
+    if (state->input->up.held) pos.y -= STEP * 4;
+    if (state->input->down.held) pos.y += STEP * 4;
+    if (state->input->z.pressed) system("ydotool click 0x40");
+    if (state->input->z.released) system("ydotool click 0x80");
+    if (state->input->x.pressed) autoclick = !autoclick;
+    if (autoclick) system("ydotool click 0xC0");
+    if (prev_pos != pos) {
+      IPos pos = get_screen_coords() / 2;
+      system(("ydotool mousemove -a -- " + std::to_string(pos.x) + " " + std::to_string(pos.y))
+                 .c_str());
+    }
+    return;
   }
   switch (state->mode) {
     case MODE_SELECT:
@@ -87,11 +103,20 @@ void Player::tick() {
     case DIALOGUE:
       break;
     case DEATH:
-      if (iframes == 0) {
-        iframes = -1;
-        state->arena->dialogue.emplace("It cannot end like this!\nTAR, stay determined!");
-      }
       break;
+  }
+}
+
+void Player::tick() {
+  if (iframes > 0) {
+    iframes--;
+  }
+  handle_input();
+  if (state->mode == DEATH) {
+    if (iframes == 0) {
+      iframes = -1;
+      state->arena->dialogue.emplace("It cannot end like this!\nTAR! Stay determined!");
+    }
   }
   if (hp <= 0 && state->mode != DEATH) {
     hp = 0;
@@ -272,7 +297,7 @@ class ActionButton : public TextButton {
 
 class CheckButton : public ActionButton {
  public:
-  CheckButton(GameState* state, int font_size) : ActionButton(state, "* Check") {}
+  CheckButton(GameState* state) : ActionButton(state, "* Check") {}
 
   void on_select() override {
     std::string pkgs = util::command::exec("yay -Q | wc -l", "").out;
@@ -285,7 +310,7 @@ class CheckButton : public ActionButton {
 
 class TalkButton : public ActionButton {
  public:
-  TalkButton(GameState* state, int font_size) : ActionButton(state, "* Talk") {}
+  TalkButton(GameState* state) : ActionButton(state, "* Talk") {}
 
   void on_select() override {
     state->arena->dialogue.emplace("You said you use  arch btw");
@@ -310,6 +335,8 @@ class DevicesButton : public ActionButton {
     system(
         "sudo disable-pci $(lspci | rofi -p 'Disable device' -dmenu -case-smart | awk '{print "
         "$1}')");
+    state->mode = DIALOGUE;
+    state->arena->dialogue.emplace("PCIe device has   been disabled");
   }
 };
 
@@ -321,6 +348,29 @@ class RescanButton : public ActionButton {
     system("sudo rescan-pci");
     state->mode = DIALOGUE;
     state->arena->dialogue.emplace("PCIe devices have been restored");
+  }
+};
+
+class SpareButton : public ActionButton {
+ public:
+  SpareButton(GameState* state) : ActionButton(state, "* Spare") {}
+
+  void on_select() override {
+    state->mode = DIALOGUE;
+    state->arena->dialogue.emplace("You tried to spare Laptop...");
+    state->arena->dialogue.emplace("That doesn't make sense though...");
+    state->arena->dialogue.emplace("You were using it for like 5 years...");
+    state->arena->dialogue.emplace("If you want to spare it, maybe try shutting it down.");
+  }
+};
+
+class FleeButton : public ActionButton {
+ public:
+  FleeButton(GameState* state) : ActionButton(state, "* Flee") {}
+
+  void on_select() override {
+    state->mode = MODE_SELECT;
+    state->player->free = true;
   }
 };
 
@@ -344,8 +394,8 @@ class ActButton : public Button {
 
   void on_select() override {
     state->clear_buttons();
-    state->buttons.push_back(new CheckButton(state, 16));
-    state->buttons.push_back(new TalkButton(state, 16));
+    state->buttons.push_back(new CheckButton(state));
+    state->buttons.push_back(new TalkButton(state));
     state->mode = ACTION_SELECT;
     state->player->selected = 0;
   }
@@ -371,8 +421,8 @@ class MercyButton : public Button {
 
   void on_select() override {
     state->clear_buttons();
-    state->buttons.push_back(new ActionButton(state, "* Spare"));
-    state->buttons.push_back(new ActionButton(state, "* Flee"));
+    state->buttons.push_back(new SpareButton(state));
+    state->buttons.push_back(new FleeButton(state));
     state->buttons.push_back(new RescanButton(state));
     state->mode = ACTION_SELECT;
     state->player->selected = 0;
@@ -391,8 +441,21 @@ void Textures::render_text(cairo_t* cr, const std::string& text, double x, doubl
 }  // namespace waybar::modules::undertale
 
 waybar::modules::undertale::Undertale::Undertale(const std::string& id, const Json::Value& config)
-    : AModule(config, "undertale", id), box_(Gtk::ORIENTATION_HORIZONTAL, 0) {
+    : AModule(config, "undertale", id), window(), box_(Gtk::ORIENTATION_HORIZONTAL, 0) {
   box_.pack_start(area_);
+  // window.get_window()->input_shape_combine_region(Cairo::Region::create(), 0, 0);
+  window.set_size_request(1920, 1080);
+  window.set_title("waybar-undertale");
+  window.set_name("undertale-overlay");
+  GtkCssProvider* css_provider = gtk_css_provider_new();
+  GError* err;
+  gtk_css_provider_load_from_path(css_provider, "~/.config/waybar/style.css", &err);
+
+  gtk_style_context_add_provider_for_screen(window.get_screen()->gobj(),
+                                            (GtkStyleProvider*)css_provider,
+                                            GTK_STYLE_PROVIDER_PRIORITY_USER);
+  window.add(state_.overlay);
+  window.show_all();
   box_.set_name("undertale");
   state_.input = new Input("/tmp/undertale_input");
   if (!id.empty()) {
@@ -405,7 +468,12 @@ waybar::modules::undertale::Undertale::Undertale(const std::string& id, const Js
     state_.set_width(200);
   }
   state_.set_height(state_.get_width() / 2);
+  state_.textures = new Textures(config["path"].asString());
+  state_.overlay.set_size_request(1920, 1080);
+  state_.overlay.set_opacity(1);
   g_signal_connect(area_.gobj(), "draw", G_CALLBACK(this->draw_callback), G_OBJECT(&state_));
+  g_signal_connect(state_.overlay.gobj(), "draw", G_CALLBACK(this->draw_overlay_callback),
+                   G_OBJECT(&state_));
 
   state_.arena = new Arena(&state_);
   state_.player = new Player(&state_);
@@ -448,8 +516,12 @@ waybar::modules::undertale::Undertale::~Undertale() { delete state_.input; };
 
 void waybar::modules::undertale::Undertale::delayWorker() {
   thread_ = [this] {
-    dp.emit();
-    thread_.sleep_for(interval_);
+    if (!pause) {
+      dp.emit();
+      thread_.sleep_for(interval_);
+    }
+    pause = !Input::is_focused();
+    if (pause) thread_.sleep();
   };
 }
 
@@ -495,29 +567,26 @@ gboolean waybar::modules::undertale::Undertale::draw_callback(GtkWidget* widget,
   for (Button* button : state->buttons) {
     button->render(cr);
   }
-  state->player->render(cr);
+  if (!state->player->free) state->player->render(cr);
   return FALSE;
 }
 
-void waybar::modules::undertale::Undertale::check_asset_path() {
-  if (config_["path"].isString()) {
-    asset_path_ = config_["path"].asString();
-  } else {
-    asset_path_ = "";
+gboolean waybar::modules::undertale::Undertale::draw_overlay_callback(GtkWidget* widget,
+                                                                      cairo_t* cr, gpointer data) {
+  auto* state = (GameState*)data;
+  Player* player = state->player;
+  if (player->free) {
+    player->render(cr);
   }
-
-  if (!Glib::file_test(asset_path_, Glib::FILE_TEST_IS_DIR)) {
-    area_.hide();
-    box_.get_style_context()->add_class("empty");
-    return;
-  }
-  state_.textures->asset_path = asset_path_;
+  return FALSE;
 }
 
 auto waybar::modules::undertale::Undertale::update() -> void {
   state_.tick++;
-  check_asset_path();
   state_.input->read();
+  gtk_widget_translate_coordinates(&area_.gobj()->widget,
+                                   gtk_widget_get_toplevel(&area_.gobj()->widget), 0, 0, &state_.x,
+                                   &state_.y);
   if (state_.mode != DEATH) {
     if (state_.mode == MODE_SELECT) {
       state_.set_height(28);
@@ -550,7 +619,16 @@ auto waybar::modules::undertale::Undertale::update() -> void {
     ind++;
   }
   if (state_.mode != MODE_SELECT) state_.arena->tick();
+  if (state_.mode != DEATH) {
+    if (state_.mode == MODE_SELECT) {
+      state_.set_height(28);
+    } else {
+      state_.set_height(state_.get_width() / 2);
+    }
+  }
+  area_.set_size_request(state_.get_width(), state_.get_height());
   area_.queue_draw();
+  state_.overlay.queue_draw();
   box_.get_style_context()->remove_class("empty");
 
   AModule::update();
