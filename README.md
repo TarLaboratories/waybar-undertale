@@ -21,24 +21,27 @@ It has the following configuration options (configured like any other waybar mod
 ```
 
 You should also add this to your `~/.config/waybar/config.jsonc` because reasons:
+
 ```css
 #undertale-overlay {
   background: transparent;
 }
 ```
 
-By the way here's the list of PNGs that are required to be in the asset folder:
- - act.png
- - act_selected.png
- - fight.png
- - fight_selected.png
- - heartbreak.png
- - hp.png
- - item.png
- - item_selected.png
- - mercy.png
- - mercy_selected.png
- - soul.png
+By the way here's the list of assets that are required to be in the asset folder:
+
+- act.png
+- act_selected.png
+- fight.png
+- fight_selected.png
+- heartbreak.png
+- hp.png
+- item.png
+- item_selected.png
+- mercy.png
+- mercy_selected.png
+- soul.png
+- Determination.ttf
 
 Oh, and this only runs on hyprland with some very specific configs because I'm lazy.
 Anyways, here's the relevant part of my `~/.config/hypr/hyprland.conf`:
