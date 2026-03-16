@@ -5,6 +5,8 @@
 uhh idk i was bored, i have no idea why i'm putting this on github<br>
 basically this puts a simple undertale fight into your waybar for no reason
 
+[Preview](preview.mp4)
+
 #### Configuration
 
 This fork adds only one module: `undertale`.
