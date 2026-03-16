@@ -3,6 +3,7 @@
 #include <fcntl.h>
 #include <spdlog/spdlog.h>
 
+#include <cctype>
 #include <stdexcept>
 #include <utility>
 
@@ -269,7 +270,7 @@ void Button::render(cairo_t* cr) const {
 }
 
 class TextButton : public Button {
- private:
+ protected:
   std::string text;
 
  public:
@@ -320,9 +321,87 @@ class TalkButton : public ActionButton {
   }
 };
 
+class CommandItemButton : public ActionButton {
+ protected:
+  std::string name;
+  std::string command;
+
+ public:
+  CommandItemButton(GameState* state, const std::string& name, std::string command)
+      : ActionButton(state, "* " + name), name(name), command(std::move(command)) {}
+
+  void on_select() override {
+    system(command.c_str());
+    state->mode = DIALOGUE;
+    std::string uppercase = "";
+    for (char i : name) uppercase += std::toupper(i);
+    state->arena->dialogue.emplace(fmt::format("You used {}!", uppercase));
+  }
+};
+
+class TerminalButton : public CommandItemButton {
+ public:
+  TerminalButton(GameState* state)
+      : CommandItemButton(state, "Cat", "kitty --class=float --detach") {}
+
+  void on_select() override {
+    int heal = 5 + (rand() % 5);
+    CommandItemButton::on_select();
+    state->arena->dialogue.emplace(fmt::format("The kitty healed you {} HP!", heal));
+    state->player->damage(-heal);
+  }
+};
+
+class BrowserButton : public CommandItemButton {
+ public:
+  BrowserButton(GameState* state) : CommandItemButton(state, "Wolf", "librewolf --browser") {}
+
+  void on_select() override {
+    int heal = (rand() % 10) + 5;
+    int dmg = rand() % 20;
+    CommandItemButton::on_select();
+    state->arena->dialogue.emplace(
+        fmt::format("You summoned a (libre) wolf! It healed you {} HP!", heal));
+    state->arena->dialogue.emplace(fmt::format("And then bit you! (-{} HP)", dmg));
+    state->player->damage(dmg - heal);
+  }
+};
+
+class IdeaButton : public CommandItemButton {
+ public:
+  IdeaButton(GameState* state)
+      : CommandItemButton(state, "Idea", "/opt/intellij-idea-community-edition/bin/idea") {}
+
+  void on_select() override {
+    CommandItemButton::on_select();
+    state->arena->dialogue.pop();
+    state->arena->dialogue.emplace("You had an idea!");
+    state->arena->dialogue.emplace(
+        "And decided that you should actually do something important...");
+  }
+};
+
+class SteamButton : public CommandItemButton {
+ public:
+  SteamButton(GameState* state) : CommandItemButton(state, "Steam", "steam -console") {}
+
+  void on_select() override {
+    CommandItemButton::on_select();
+    state->arena->dialogue.emplace("It was very effective...");
+    state->arena->dialogue.emplace("...in hogging all of the system resources.");
+  }
+};
+
+class PowerButton : public CommandItemButton {
+ public:
+  PowerButton(GameState* state) : CommandItemButton(state, "Sleep", "suspend") {}
+
+  void on_select() override { state->arena->dialogue.emplace("Oh, you woke up!"); }
+};
+
 class AppsButton : public ActionButton {
  public:
-  AppsButton(GameState* state) : ActionButton(state, "* Apps") {}
+  AppsButton(GameState* state) : ActionButton(state, "* ???") {}
 
   void on_select() override { system("rofi -show drun"); }
 };
@@ -365,12 +444,25 @@ class SpareButton : public ActionButton {
 };
 
 class FleeButton : public ActionButton {
+ private:
+  int count = 0;
+
  public:
   FleeButton(GameState* state) : ActionButton(state, "* Flee") {}
 
   void on_select() override {
     state->mode = MODE_SELECT;
-    state->player->free = true;
+    if (state->player->free) {
+      text = "* Re";
+      for (int i = 1; i < count; i++) {
+        text += "re";
+      }
+      text += "flee";
+    } else {
+      text = "* Unflee";
+      count++;
+    }
+    state->player->free = !state->player->free;
   }
 };
 
@@ -408,6 +500,11 @@ class ItemButton : public Button {
 
   void on_select() override {
     state->clear_buttons();
+    state->buttons.push_back(new TerminalButton(state));
+    state->buttons.push_back(new BrowserButton(state));
+    state->buttons.push_back(new IdeaButton(state));
+    state->buttons.push_back(new SteamButton(state));
+    state->buttons.push_back(new PowerButton(state));
     state->buttons.push_back(new AppsButton(state));
     state->mode = ACTION_SELECT;
     state->player->selected = 0;

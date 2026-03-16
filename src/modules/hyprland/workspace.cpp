@@ -1,7 +1,6 @@
 #include <json/value.h>
 #include <spdlog/spdlog.h>
 
-#include <memory>
 #include <string>
 #include <utility>
 
@@ -60,7 +59,8 @@ std::optional<WindowRepr> Workspace::closeWindow(WindowAddress const& addr) {
   // If the vector contains the address, remove it and return the window representation
   if (it != m_windowMap.end()) {
     WindowRepr windowRepr = *it;
-    m_windowMap.erase(it);
+    windowRepr.decreaseCount();
+    if (windowRepr.getCount() == 0) m_windowMap.erase(it);
     return windowRepr;
   }
   return std::nullopt;
@@ -129,8 +129,15 @@ void Workspace::setActiveWindow(WindowAddress const& addr) {
 void Workspace::insertWindow(WindowCreationPayload create_window_payload) {
   if (!create_window_payload.isEmpty(m_workspaceManager)) {
     auto repr = create_window_payload.repr(m_workspaceManager);
+    bool exists = false;
+    for (WindowRepr& repr2 : m_windowMap) {
+      if (repr.window_class == repr2.window_class) {
+        exists = true;
+        repr2.incrementCount();
+      }
+    }
 
-    if (!repr.empty() || m_workspaceManager.enableTaskbar()) {
+    if ((!repr.empty() || m_workspaceManager.enableTaskbar()) && !exists) {
       auto addr = create_window_payload.getAddress();
       auto it = std::ranges::find_if(
           m_windowMap, [&addr](const auto& window) { return window.address == addr; });
@@ -312,8 +319,10 @@ void Workspace::updateTaskbar(const std::string& workspace_icon) {
           sigc::bind(sigc::mem_fun(*this, &Workspace::handleClick), window_repr.address));
     }
 
-    auto text_before = fmt::format(fmt::runtime(m_workspaceManager.taskbarFormatBefore()),
-                                   fmt::arg("title", window_repr.window_title));
+    auto text_before = fmt::format(
+        fmt::runtime(m_workspaceManager.taskbarFormatBefore()),
+        fmt::arg("title", window_repr.window_title),
+        fmt::arg("count", window_repr.count == 1 ? "" : std::to_string(window_repr.count)));
     if (!text_before.empty()) {
       auto window_label_before = Gtk::make_managed<Gtk::Label>(text_before);
       window_box->pack_start(*window_label_before, true, true);
@@ -327,8 +336,10 @@ void Workspace::updateTaskbar(const std::string& workspace_icon) {
       window_box->pack_start(*window_icon, false, false);
     }
 
-    auto text_after = fmt::format(fmt::runtime(m_workspaceManager.taskbarFormatAfter()),
-                                  fmt::arg("title", window_repr.window_title));
+    auto text_after = fmt::format(
+        fmt::runtime(m_workspaceManager.taskbarFormatAfter()),
+        fmt::arg("title", window_repr.window_title),
+        fmt::arg("count", window_repr.count == 1 ? "" : std::to_string(window_repr.count)));
     if (!text_after.empty()) {
       auto window_label_after = Gtk::make_managed<Gtk::Label>(text_after);
       window_box->pack_start(*window_label_after, true, true);

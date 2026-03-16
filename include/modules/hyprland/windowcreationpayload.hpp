@@ -32,10 +32,14 @@ struct WindowRepr {
   std::string window_title;
   std::string repr_rewrite;
   bool isActive = false;
+  int count = 1;
 
  public:
   bool empty() const { return address.empty(); }
   void setActive(bool value) { isActive = value; }
+  void incrementCount() { count++; }
+  void decreaseCount() { count--; }
+  int getCount() const { return count; }
 };
 
 class WindowCreationPayload {
