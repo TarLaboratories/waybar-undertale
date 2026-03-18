@@ -133,19 +133,20 @@ void Workspace::insertWindow(WindowCreationPayload create_window_payload) {
     for (WindowRepr& repr2 : m_windowMap) {
       if (repr.window_class == repr2.window_class) {
         exists = true;
-        repr2.incrementCount();
       }
     }
 
-    if ((!repr.empty() || m_workspaceManager.enableTaskbar()) && !exists) {
+    if ((!repr.empty() || m_workspaceManager.enableTaskbar())) {
       auto addr = create_window_payload.getAddress();
       auto it = std::ranges::find_if(
           m_windowMap, [&addr](const auto& window) { return window.address == addr; });
       // If the vector contains the address, update the window representation, otherwise insert it
       if (it != m_windowMap.end()) {
         *it = repr;
-      } else {
+      } else if (!exists) {
         m_windowMap.emplace_back(repr);
+      } else {
+        repr.incrementCount();
       }
     }
   }

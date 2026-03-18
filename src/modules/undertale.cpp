@@ -117,6 +117,8 @@ void Player::tick() {
     if (iframes == 0) {
       iframes = -1;
       state->arena->dialogue.emplace("It cannot end like this!\nTAR! Stay determined!");
+      system(fmt::format("cmus-remote -f {}gameover.ogg", state->textures->asset_path).c_str());
+      system("sudo rescan-pci");
     }
   }
   if (hp <= 0 && state->mode != DEATH) {
@@ -125,6 +127,7 @@ void Player::tick() {
     iframes = 80;
     state->mode = DEATH;
     state->clear_buttons();
+    system("cmus-remote -u");
   } else if (state->mode != DEATH) {
     texture_name = "soul.png";
   } else if (state->mode == DEATH && iframes == 60) {
@@ -177,6 +180,8 @@ void Arena::tick() {
               state->set_width(200);
               state->mode = MODE_SELECT;
               state->player->damage(-20);
+              system(
+                  fmt::format("cmus-remote -f {}battle.ogg", state->textures->asset_path).c_str());
             }
             state->set_width(state->get_width() - 5);
           } else
@@ -415,7 +420,9 @@ class DevicesButton : public ActionButton {
         "sudo disable-pci $(lspci | rofi -p 'Disable device' -dmenu -case-smart | awk '{print "
         "$1}')");
     state->mode = DIALOGUE;
+    std::string count = util::command::exec("lspci | wc -l", "").out;
     state->arena->dialogue.emplace("PCIe device has   been disabled");
+    state->arena->dialogue.emplace(count + " left.red");
   }
 };
 
@@ -529,10 +536,16 @@ class MercyButton : public Button {
 void Textures::render_text(cairo_t* cr, const std::string& text, double x, double y,
                            int font_size) const {
   cairo_set_source_rgb(cr, 1, 1, 1);
+  std::string txt;
+  if (text.ends_with("red")) {
+    cairo_set_source_rgb(cr, 1, 0, 0);
+    txt = text.substr(0, text.size() - 3);
+  } else
+    txt = text;
   cairo_move_to(cr, x, y);
   cairo_set_font_face(cr, font);
   cairo_set_font_size(cr, font_size);
-  cairo_show_text(cr, text.c_str());
+  cairo_show_text(cr, txt.c_str());
   cairo_move_to(cr, 0, 0);
 }
 }  // namespace waybar::modules::undertale
@@ -575,7 +588,7 @@ waybar::modules::undertale::Undertale::Undertale(const std::string& id, const Js
   state_.arena = new Arena(&state_);
   state_.player = new Player(&state_);
 
-  IPos button_pos = {4, state_.arena->pos.y + state_.arena->get_height() + 8};
+  IPos button_pos = {4, state_.arena->pos.y + state_.arena->get_height() + 16};
   int button_width = (state_.get_width() / 4) - 8;
   int button_height = button_width / 2;
 
@@ -703,7 +716,7 @@ auto waybar::modules::undertale::Undertale::update() -> void {
       if (state_.mode != MODE_SELECT)
         button->pos.y = state_.arena->pos.y + state_.arena->get_height() + 8;
       else
-        button->pos.y = (state_.get_height() - button->get_height()) / 2;
+        button->pos.y = (state_.get_height() - button->get_height()) / 2 + 3;
     } else {
       button->pos.y =
           state_.arena->pos.y + 2 + (ind - 4) / 2 * button->get_height() + button->get_height();

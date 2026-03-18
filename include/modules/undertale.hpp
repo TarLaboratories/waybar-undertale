@@ -69,7 +69,11 @@ class Input {
     return util::command::exec("hyprctl submap", "").out == "undertale\n";
   }
 
-  static void unfocus() { system("hyprctl dispatch submap reset > /dev/null"); }
+  static void unfocus() {
+    system("hyprctl dispatch submap reset > /dev/null");
+    system("hyprctl setcursor Adwaita 16");
+    system("cmus-remote -n");
+  }
 
  private:
   void bind() {
