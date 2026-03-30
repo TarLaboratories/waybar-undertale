@@ -94,6 +94,7 @@ xkbregistry = dependency('xkbregistry')
 libjack = dependency('jack', required: get_option('jack'))
 libwireplumber = dependency('wireplumber-0.5', required: get_option('wireplumber'))
 libgps = dependency('libgps', required: get_option('gps'))
+freetype = dependency('freetype2')
 
 libsndio = compiler.find_library('sndio', required: get_option('sndio'))
 if libsndio.found()
@@ -564,7 +565,8 @@ executable(
 		xkbregistry,
         cava,
         eproxy,
-        libgps
+        libgps,
+        freetype
     ],
     include_directories: inc_dirs,
     install: true,
