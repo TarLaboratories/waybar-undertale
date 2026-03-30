@@ -79,7 +79,7 @@ Just build from source.
 #### Building from source
 
 ```bash
-$ git clone https://github.com/Alexays/Waybar
+$ git clone https://github.com/TarLaboratories/waybar-undertale
 $ cd Waybar
 $ meson setup build
 $ ninja -C build
