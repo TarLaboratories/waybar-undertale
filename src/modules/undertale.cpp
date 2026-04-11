@@ -43,9 +43,9 @@ void Player::render(cairo_t* cr) const {
   if (iframes % 8 < 4 && state->mode != DIALOGUE) ISizeableTextured::render(cr);
 }
 
-void Player::damage(int damage) {
+void Player::damage(int damage, int add_iframes) {
   if (iframes > 0) return;
-  iframes = 20;
+  iframes = add_iframes;
   hp -= damage;
 }
 
@@ -284,8 +284,9 @@ class TextButton : public Button {
 
   void render(cairo_t* cr) const override {
     if (state->mode == ACTION_SELECT) {
-      state->textures->render_text(cr, text, pos.x + state->player->get_width() + 2, pos.y,
-                                   get_height());
+      if (selected)
+        state->textures->render_text(cr, text, pos.x + state->player->get_width() + 2, pos.y,
+                                     get_height());
     }
   }
 
@@ -311,6 +312,7 @@ class CheckButton : public ActionButton {
     state->arena->dialogue.emplace("Laptop - SYS artix PKG " + pkgs + " BAT " + bat);
     state->arena->dialogue.emplace("* I use arch btw");
     state->mode = DIALOGUE;
+    state->arena->attacks.push_back(new BoneAttack(state, 50, {10, 10}, {0, 0}));
   }
 };
 

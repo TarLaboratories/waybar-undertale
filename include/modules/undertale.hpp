@@ -309,7 +309,7 @@ class Player : public ISizeableTextured, public IUIElement {
 
   void render(cairo_t *cr) const override;
 
-  void damage(int damage);
+  void damage(int damage, int add_iframes = 20);
 
   void handle_input();
 
@@ -409,6 +409,36 @@ class Bullet : public Attack, private ISizeablePositioned {
     cairo_set_source_rgb(cr, 1, 1, 1);
     cairo_arc(cr, pos.x + state->arena->pos.x, pos.y + state->arena->pos.y, radius, 0, 360);
     cairo_stroke(cr);
+  }
+};
+
+class BoneAttack : public Attack, private ISizeablePositioned {
+ private:
+  GameState *state;
+  IPos vec;
+
+ public:
+  BoneAttack(GameState *state, int height, IPos pos, IPos vec) {
+    this->state = state;
+    this->height = height;
+    this->width = 10;
+    this->pos = pos;
+  }
+
+  void tick() override {
+    if (intersects(state->player)) {
+      state->player->damage(1);
+    }
+    pos = pos + vec;
+  }
+
+  void render(cairo_t *cr) const override {
+    IPos p = pos + state->arena->pos;
+    state->textures->render(cr, "bone_top.png", p.x, p.y, 10, -1);
+    state->textures->render(cr, "bone_bottom.png", p.x, p.y + height - 6, 10, -1);
+    cairo_set_source_rgb(cr, 1, 1, 1);
+    cairo_rectangle(cr, p.x, p.y + 6, 10, height - 12);
+    cairo_fill(cr);
   }
 };
 

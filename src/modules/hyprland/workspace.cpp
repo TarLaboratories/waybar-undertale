@@ -59,8 +59,7 @@ std::optional<WindowRepr> Workspace::closeWindow(WindowAddress const& addr) {
   // If the vector contains the address, remove it and return the window representation
   if (it != m_windowMap.end()) {
     WindowRepr windowRepr = *it;
-    windowRepr.decreaseCount();
-    if (windowRepr.getCount() == 0) m_windowMap.erase(it);
+    m_windowMap.erase(it);
     return windowRepr;
   }
   return std::nullopt;
@@ -129,12 +128,6 @@ void Workspace::setActiveWindow(WindowAddress const& addr) {
 void Workspace::insertWindow(WindowCreationPayload create_window_payload) {
   if (!create_window_payload.isEmpty(m_workspaceManager)) {
     auto repr = create_window_payload.repr(m_workspaceManager);
-    bool exists = false;
-    for (WindowRepr& repr2 : m_windowMap) {
-      if (repr.window_class == repr2.window_class) {
-        exists = true;
-      }
-    }
 
     if ((!repr.empty() || m_workspaceManager.enableTaskbar())) {
       auto addr = create_window_payload.getAddress();
@@ -143,10 +136,8 @@ void Workspace::insertWindow(WindowCreationPayload create_window_payload) {
       // If the vector contains the address, update the window representation, otherwise insert it
       if (it != m_windowMap.end()) {
         *it = repr;
-      } else if (!exists) {
-        m_windowMap.emplace_back(repr);
       } else {
-        repr.incrementCount();
+        m_windowMap.emplace_back(repr);
       }
     }
   }
