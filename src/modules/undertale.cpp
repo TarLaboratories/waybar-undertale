@@ -284,9 +284,8 @@ class TextButton : public Button {
 
   void render(cairo_t* cr) const override {
     if (state->mode == ACTION_SELECT) {
-      if (selected)
-        state->textures->render_text(cr, text, pos.x + state->player->get_width() + 2, pos.y,
-                                     get_height());
+      state->textures->render_text(cr, text, pos.x + state->player->get_width() + 2, pos.y,
+                                   get_height());
     }
   }
 
