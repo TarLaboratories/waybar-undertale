@@ -20,6 +20,8 @@ namespace waybar::modules::undertale {
 
 enum MovementMode : std::uint8_t { MODE_SELECT, ACTION_SELECT, ARENA, DIALOGUE, DEATH };
 
+enum SoulColor : std::uint8_t { RED, BLUE, GREEN };
+
 enum Action : std::uint8_t { FIGHT, ACT, ITEM, MERCY };
 
 struct KeyState {
@@ -236,14 +238,14 @@ class ISizeablePositioned : public ISizeable, public IPositioned {
     return true;
   }
 
-  virtual bool contains(IPos pos) {
+  virtual bool contains(IPos pos) const {
     IPos rel = pos - this->pos;
     if (rel.x < 0 || rel.y < 0) return false;
     if (rel.x > get_width() || rel.y > get_height()) return false;
     return true;
   }
 
-  virtual bool intersects(ISizeablePositioned *obj) {
+  virtual bool intersects(ISizeablePositioned *obj) const {
     if (contains(obj->pos)) return true;
     if (contains(obj->pos + IPos{obj->get_width(), 0})) return true;
     if (contains(obj->pos + IPos{0, obj->get_height()})) return true;
@@ -294,10 +296,12 @@ class Player : public ISizeableTextured, public IUIElement {
  private:
   int hp;
   int iframes;
+  double dy = 0;
   GameState *state;
 
  public:
   int selected = ACT;
+  SoulColor color = RED;
   bool free = false;
   bool autoclick = false;
 
@@ -325,7 +329,7 @@ class Arena : public ISizeablePositioned, public IRenderable, public IUIElement 
   GameState *state;
 
  public:
-  std::vector<Attack *> attacks;
+  std::vector<std::unique_ptr<Attack>> attacks;
   std::queue<std::string> dialogue;
   std::vector<std::string> cur_text;
   int cur_char = 0;
@@ -403,7 +407,7 @@ class Bullet : public Attack, private ISizeablePositioned {
       remove();
   }
 
-  bool contains(IPos p) override { return (p - pos).sq_dist() <= radius * radius; }
+  bool contains(IPos p) const override { return (p - pos).sq_dist() <= radius * radius; }
 
   void render(cairo_t *cr) const override {
     cairo_set_source_rgb(cr, 1, 1, 1);
@@ -421,24 +425,31 @@ class BoneAttack : public Attack, private ISizeablePositioned {
   BoneAttack(GameState *state, int height, IPos pos, IPos vec) {
     this->state = state;
     this->height = height;
-    this->width = 10;
+    this->width = 5;
     this->pos = pos;
+    this->vec = vec;
   }
 
   void tick() override {
     if (intersects(state->player)) {
-      state->player->damage(1);
+      state->player->damage(1, 0);
     }
     pos = pos + vec;
+    if (pos.x > state->arena->get_width() || pos.y > state->arena->get_height() || pos.x < 0 ||
+        pos.y < 0) {
+      remove();
+    }
   }
 
   void render(cairo_t *cr) const override {
-    IPos p = pos + state->arena->pos;
-    state->textures->render(cr, "bone_top.png", p.x, p.y, 10, -1);
-    state->textures->render(cr, "bone_bottom.png", p.x, p.y + height - 6, 10, -1);
-    cairo_set_source_rgb(cr, 1, 1, 1);
-    cairo_rectangle(cr, p.x, p.y + 6, 10, height - 12);
-    cairo_fill(cr);
+    if (pos.x <= state->arena->get_width() && pos.y <= state->arena->get_height()) {
+      IPos p = pos + state->arena->pos;
+      state->textures->render(cr, "bone_top.png", p.x, p.y, 10, -1);
+      state->textures->render(cr, "bone_bottom.png", p.x, p.y + height - 6, 10, -1);
+      cairo_set_source_rgb(cr, 1, 1, 1);
+      cairo_rectangle(cr, p.x + 2.5, p.y + 6, 5, height - 12);
+      cairo_fill(cr);
+    }
   }
 };
 

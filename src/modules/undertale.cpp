@@ -12,11 +12,30 @@
 #include "glib-object.h"
 #include "glib.h"
 #include "glibconfig.h"
-#include "glibmm/fileutils.h"
 #include "gtk/gtk.h"
 #include "gtkmm/widget.h"
 
 namespace waybar::modules::undertale {
+class SansAttack0 : public Attack {
+ private:
+  GameState* state;
+  long long tick_num = 0;
+
+ public:
+  SansAttack0(GameState* state) : state(state) {}
+
+  void tick() override {
+    state->player->color = BLUE;
+    tick_num++;
+    if (tick_num % 20 == 1) {
+      state->arena->attacks.push_back(
+          std::unique_ptr<Attack>(new BoneAttack(state, 30, {0, 0}, {5, 0})));
+      state->arena->attacks.push_back(
+          std::unique_ptr<Attack>(new BoneAttack(state, 4, {0, 46}, {5, 0})));
+    }
+  }
+};
+
 Player::Player(GameState* state) : ISizeableTextured(state->textures, "soul.png") {
   width = height = (state->get_width() / 16) - 3;
   hp = 20;
@@ -92,12 +111,25 @@ void Player::handle_input() {
             IPos{2, 7 - state->buttons[selected + 4]->get_height()};
       break;
     case ARENA:
+      if (color == GREEN) break;
       if (state->input->left.held) pos.x -= STEP;
       if (state->input->right.held) pos.x += STEP;
       pos.x = std::max(pos.x, 1);
       pos.x = std::min(pos.x, state->arena->get_width() - get_width() - 1);
-      if (state->input->up.held) pos.y -= STEP;
-      if (state->input->down.held) pos.y += STEP;
+      if (color == BLUE) {
+        if (pos.y == state->arena->get_height() - get_height() - 1) {
+          dy = std::min(dy, 0.0);
+          if (state->input->up.pressed) dy = -4.5;
+        } else {
+          dy += 0.5;
+          if (!state->input->up.held) dy = std::max(dy, 0.0);
+        }
+        pos.y += dy;
+      } else {
+        dy = 0;
+        if (state->input->up.held) pos.y -= STEP;
+        if (state->input->down.held) pos.y += STEP;
+      }
       pos.y = std::max(pos.y, 1);
       pos.y = std::min(pos.y, state->arena->get_height() - get_height() - 1);
       break;
@@ -129,7 +161,13 @@ void Player::tick() {
     state->clear_buttons();
     system("cmus-remote -u");
   } else if (state->mode != DEATH) {
-    texture_name = "soul.png";
+    if (color == RED) {
+      texture_name = "soul.png";
+    } else if (color == BLUE) {
+      texture_name = "soul_blue.png";
+    } else if (color == GREEN) {
+      texture_name = "soul_green.png";
+    }
   } else if (state->mode == DEATH && iframes == 60) {
     texture_name = "heartbreak.png";
   }
@@ -158,8 +196,10 @@ void Arena::tick() {
       state->mode = MODE_SELECT;
       return;
     }
-    for (Attack* attack : attacks) {
-      if (!attack->is_deleted()) attack->tick();
+    for (int i = 0; i < attacks.size(); i++) {
+      if (!attacks[i]->is_deleted()) {
+        attacks[i]->tick();
+      }
     }
     for (auto it = attacks.begin(); it != attacks.end();) {
       if ((*it)->is_deleted()) {
@@ -193,6 +233,7 @@ void Arena::tick() {
       attack_ticks = 200;
       cur_text.clear();
       cur_char = 0;
+      attacks.push_back(std::unique_ptr<Attack>(new SansAttack0(state)));
     } else {
       if (cur_char < dialogue.front().size()) {
         do {
@@ -228,7 +269,7 @@ void Arena::render(cairo_t* cr) const {
     cairo_stroke(cr);
   }
 
-  for (const Attack* attack : attacks) {
+  for (const std::unique_ptr<Attack>& attack : attacks) {
     attack->render(cr);
   }
 
@@ -311,7 +352,6 @@ class CheckButton : public ActionButton {
     state->arena->dialogue.emplace("Laptop - SYS artix PKG " + pkgs + " BAT " + bat);
     state->arena->dialogue.emplace("* I use arch btw");
     state->mode = DIALOGUE;
-    state->arena->attacks.push_back(new BoneAttack(state, 50, {10, 10}, {0, 0}));
   }
 };
 
@@ -706,10 +746,6 @@ auto waybar::modules::undertale::Undertale::update() -> void {
     }
   }
   area_.set_size_request(state_.get_width(), state_.get_height());
-  if (rand() % 4 == 0 && state_.mode == ARENA) {
-    state_.arena->attacks.push_back(
-        new Bullet(&state_, 5, {50, 50}, {(rand() % 6) - 3, -(rand() % 3)}));
-  }
   state_.player->tick();
   int ind = 0;
   for (Button* button : state_.buttons) {
